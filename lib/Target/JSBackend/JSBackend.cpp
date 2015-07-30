@@ -2898,34 +2898,25 @@ void JSWriter::printModuleBody() {
   bool first = true;
   for (Module::const_iterator I = TheModule->begin(), E = TheModule->end();
        I != E; ++I) {
-    if (I->isDeclaration() && !I->use_empty()) {
-      // Ignore intrinsics that are always no-ops or expanded into other code
-      // which doesn't require the intrinsic function itself to be declared.
-      if (I->isIntrinsic()) {
-        switch (I->getIntrinsicID()) {
-        case Intrinsic::dbg_declare:
-        case Intrinsic::dbg_value:
-        case Intrinsic::lifetime_start:
-        case Intrinsic::lifetime_end:
-        case Intrinsic::invariant_start:
-        case Intrinsic::invariant_end:
-        case Intrinsic::prefetch:
-        case Intrinsic::memcpy:
-        case Intrinsic::memset:
-        case Intrinsic::memmove:
-        case Intrinsic::expect:
-        case Intrinsic::flt_rounds:
-          continue;
-        }
-      }
+    // Don't add functoins that are defined in the module to the 'declares'.
+    if (!I->isDeclaration())
+      continue;
+    // Ignore unused declarations.
+    if (I->use_empty())
+      continue;
+    // Ignore intrinsics that are always no-ops or expanded into other code
+    // which doesn't require the intrinsic function itself to be declared.
+    // Unless they're address-taken, in which case we need to declare them
+    // anyway.
+    if (CallHandlers.count(getJSName(I)) && I->hasAddressTaken())
+      continue;
 
-      if (first) {
-        first = false;
-      } else {
-        Out << ", ";
-      }
-      Out << "\"" << I->getName() << "\"";
+    if (first) {
+      first = false;
+    } else {
+      Out << ", ";
     }
+    Out << "\"" << I->getName() << "\"";
   }
   for (NameSet::const_iterator I = Declares.begin(), E = Declares.end();
        I != E; ++I) {
