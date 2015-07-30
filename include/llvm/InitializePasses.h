@@ -356,6 +356,7 @@ void initializeLowerEmAsyncifyPass(PassRegistry&);
 void initializeLowerEmExceptionsPass(PassRegistry&);
 void initializeLowerEmSetjmpPass(PassRegistry&);
 void initializeNoExitRuntimePass(PassRegistry&);
+void initializeOptimizeSinCosPass(PassRegistry&);
 // Emscripten passes end.
 // @LOCALMOD-END
 }

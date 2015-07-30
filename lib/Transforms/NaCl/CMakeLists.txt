@@ -48,6 +48,7 @@ add_llvm_library(LLVMNaClTransforms
   LowerEmExceptionsPass.cpp
   LowerEmSetjmp.cpp
   NoExitRuntime.cpp
+  OptimizeSinCos.cpp
   # Emscripten files end.
   )
 
