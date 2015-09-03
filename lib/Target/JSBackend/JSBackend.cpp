@@ -1340,15 +1340,31 @@ std::string JSWriter::getConstantVector(const ConstantVector *C) {
 
   // Check for a splat.
   bool allEqual = true;
+  bool hasNaN = false;
   std::string op0 = getConstant(C->getOperand(0));
   for (unsigned i = 0; i < NumElts; ++i) {
-    if (getConstant(C->getOperand(i)) != op0) {
+    Constant *Elt = C->getOperand(i);
+    if (getConstant(Elt) != op0)
       allEqual = false;
-      break;
-    }
+    if (isa<ConstantFP>(Elt) && cast<ConstantFP>(Elt)->isNaN())
+      hasNaN = true;
   }
   if (allEqual) {
     return std::string("SIMD_") + SIMDType(C->getType()) + "_splat(" + ensureFloat(op0, !isInt) + ')';
+  }
+
+  // If this is a floating point SIMD constant containing a NaN, print it as an
+  // integer SIMD constant and bitcast it to the floating point SIMD type so
+  // that we preserve the bits of the NaN.
+  if (!isInt && hasNaN) {
+    VectorType *IntTy = VectorType::getInteger(C->getType());
+    std::string c = std::string("SIMD_") + SIMDType(C->getType()) + "_from" + SIMDType(IntTy) + "Bits(" + SIMDType(IntTy) + '(';
+    for (unsigned i = 0; i < NumElts; ++i) {
+      if (i != 0)
+        c += ',';
+      c += cast<ConstantFP>(C->getOperand(i))->getValueAPF().bitcastToAPInt().toString(10, false);
+    }
+    return c + "))";
   }
 
   std::string c = std::string("SIMD_") + SIMDType(C->getType()) + '(' + ensureFloat(op0, !isInt);
@@ -1364,16 +1380,32 @@ std::string JSWriter::getConstantVector(const ConstantDataVector *C) {
 
   bool isInt = C->getType()->getElementType()->isIntegerTy();
   bool allEqual = true;
+  bool hasNaN = false;
   std::string op0 = getConstant(C->getElementAsConstant(0));
   for (unsigned i = 0; i < NumElts; ++i) {
-    if (getConstant(C->getElementAsConstant(i)) != op0) {
+    Constant *Elt = C->getElementAsConstant(i);
+    if (getConstant(Elt) != op0)
       allEqual = false;
-      break;
-    }
+    if (isa<ConstantFP>(Elt) && cast<ConstantFP>(Elt)->isNaN())
+      hasNaN = true;
   }
   // Check for a splat.
   if (allEqual) {
     return std::string("SIMD_") + SIMDType(C->getType()) + "_splat(" + ensureFloat(op0, !isInt) + ')';
+  }
+
+  // If this is a floating point SIMD constant containing a NaN, print it as an
+  // integer SIMD constant and bitcast it to the floating point SIMD type so
+  // that we preserve the bits of the NaN.
+  if (!isInt && hasNaN) {
+    VectorType *IntTy = VectorType::getInteger(C->getType());
+    std::string c = std::string("SIMD_") + SIMDType(C->getType()) + "_from" + SIMDType(IntTy) + "Bits(" + SIMDType(IntTy) + '(';
+    for (unsigned i = 0; i < NumElts; ++i) {
+      if (i != 0)
+        c += ',';
+      c += cast<ConstantFP>(C->getElementAsConstant(i))->getValueAPF().bitcastToAPInt().toString(10, false);
+    }
+    return c + "))";
   }
 
   std::string c = std::string("SIMD_") + SIMDType(C->getType()) + '(' + ensureFloat(op0, !isInt);
